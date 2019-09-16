@@ -126,25 +126,27 @@ class CycleGAN(nn.Module):
         self.loss_D_T.backward()
 
     def train_G(self):
-        lambda_cycle = self.params.lambda_cycle
-        lambda_ident = self.params.lambda_ident
-
-        # Identity training
-        self.ident_S = self.G_S(self.real_S)
-        self.loss_ident_S = self.criterion_identity(self.ident_S, self.real_S)*lambda_ident
-        self.ident_T = self.G_T(self.real_T)
-        self.loss_ident_T = self.criterion_identity(self.ident_T, self.real_T)*lambda_ident
 
         # Adversarial training
         self.loss_G_S = self.criterion_GAN(self.D_S(self.fake_S), self.real)
         self.loss_G_T = self.criterion_GAN(self.D_T(self.fake_T), self.real)
 
         # Cycle consistency training
+        lambda_cycle = self.params.lambda_cycle
         self.loss_cycle_S = self.criterion_cycle(self.recons_S, self.real_S)*lambda_cycle
         self.loss_cycle_T = self.criterion_cycle(self.recons_T, self.real_T)*lambda_cycle
 
-        self.loss_G = self.loss_ident_S + self.loss_G_S + self.loss_cycle_S +\
-                      self.loss_ident_T + self.loss_G_T + self.loss_cycle_T
+        self.loss_G = self.loss_G_S + self.loss_cycle_S + self.loss_G_T + self.loss_cycle_T
+
+        # Identity training
+        if self.params.use_ident:
+            lambda_ident = self.params.lambda_ident
+            self.ident_S = self.G_S(self.real_S)
+            self.loss_ident_S = self.criterion_identity(self.ident_S, self.real_S)*lambda_ident
+            self.ident_T = self.G_T(self.real_T)
+            self.loss_ident_T = self.criterion_identity(self.ident_T, self.real_T)*lambda_ident
+            self.loss_G = self.loss_G + self.loss_ident_S + self.loss_ident_T
+
         self.loss_G.backward()
 
     def train(self):
@@ -164,12 +166,14 @@ class CycleGAN(nn.Module):
         log_for_term = {'G_total': self.loss_G, 'D_total': self.loss_D_S+self.loss_D_T}                   # Terminal에 logging할 정보
 
         loss_log = {'G_total': self.loss_G, 'G_adversarial': self.loss_G_S+self.loss_G_T,                 # Visdom에 visualize할 loss graph
-                    'G_identity': self.loss_ident_S+self.loss_ident_T,
                     'G_cycle':self.loss_cycle_S + self.loss_cycle_T,
                     'D_total': self.loss_D_S + self.loss_D_T}
 
         img_log = { 'real_S':self.real_S[0], 'real_T':self.real_T[0], 'fake_S':self.fake_S[0],            # Visdom에 visualize할 images
                     'fake_T':self.fake_T[0], 'recons_S':self.recons_S[0], 'recons_T':self.recons_T[0]}
+
+        if self.params.use_ident:
+            img_log['G_identity'] = self.loss_ident_S + self.loss_ident_T
 
         return log_for_term, loss_log, img_log
 
