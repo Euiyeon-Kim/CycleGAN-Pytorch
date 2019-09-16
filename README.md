@@ -1,6 +1,5 @@
 # CycleGAN-Pytorch
-Reproduce CycleGAN using pytorch
-
+Reproduce Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks
 ### Main Losses
 
 1. Adversarial Loss
